@@ -1,0 +1,43 @@
+name: Update AppLovin catalog feed
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update-feed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pandas requests
+
+      - name: Run transform
+        env:
+          CHANNELADVISOR_FEED_URL: ${{ secrets.CHANNELADVISOR_FEED_URL }}
+          CA_AUTH_USER: ${{ secrets.CA_AUTH_USER }}
+          CA_AUTH_PASS: ${{ secrets.CA_AUTH_PASS }}
+          CA_API_KEY: ${{ secrets.CA_API_KEY }}
+          OUTPUT_PATH: feed/applovin_catalog_feed.csv
+          WINDOW_START_DAYS: "3"
+          WINDOW_END_DAYS: "30"
+        run: python transform_feed.py
+
+      - name: Commit updated feed
+        run: |
+          git config user.name "feed-bot"
+          git config user.email "feed-bot@users.noreply.github.com"
+          git add feed/applovin_catalog_feed.csv
+          git diff --quiet --cached || git commit -m "Update AppLovin feed ($(date -u +%Y-%m-%d))"
+          git push
